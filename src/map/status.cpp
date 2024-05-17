@@ -35,6 +35,7 @@
 #include "pc_groups.hpp"
 #include "pet.hpp"
 #include "script.hpp"
+#include "stall.hpp"
 
 using namespace rathena;
 
@@ -9209,6 +9210,7 @@ struct view_data* status_get_viewdata(struct block_list *bl)
 		case BL_HOM: return ((TBL_HOM*)bl)->vd;
 		case BL_MER: return ((TBL_MER*)bl)->vd;
 		case BL_ELEM: return ((TBL_ELEM*)bl)->vd;
+		case BL_STALL: return &((TBL_STALL*)bl)->vd;
 	}
 	return nullptr;
 }
@@ -9394,6 +9396,7 @@ status_change *status_get_sc(struct block_list *bl)
 		case BL_HOM: return &((TBL_HOM*)bl)->sc;
 		case BL_MER: return &((TBL_MER*)bl)->sc;
 		case BL_ELEM: return &((TBL_ELEM*)bl)->sc;
+		case BL_STALL: return &((TBL_STALL*)bl)->sc;
 	}
 	return nullptr;
 }

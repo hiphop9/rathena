@@ -10,6 +10,7 @@
 
 #include "battle.hpp"  // battle_config.*
 #include "clif.hpp"  // clif_open_search_store_info, clif_search_store_info_*
+#include "stall.hpp"
 #include "pc.hpp"  // map_session_data
 
 /// Failure constants for clif functions
@@ -216,6 +217,16 @@ void searchstore_query(map_session_data* sd, unsigned char type, unsigned int mi
 		}
 	}
 
+	for (auto& itStalls : stall_db){
+		if(itStalls->vended_id == sd->status.char_id) // skip own shop, if any
+			continue;
+
+		if( !stall_searchall(pl_sd, &s, itStalls, type) ) { // exceeded result size
+			clif_search_store_info_failed(sd, SSI_FAILED_OVER_MAXCOUNT);
+			break;
+		}
+	}
+
 	dbi_destroy(iter);
 
 	if( !sd->searchstore.items.empty() ) {
@@ -316,39 +327,61 @@ void searchstore_click(map_session_data* sd, uint32 account_id, int store_id, t_
 		return;
 	}
 
-	if( ( pl_sd = map_id2sd(account_id) ) == nullptr ) { // no longer online
-		clif_search_store_info_failed(sd, SSI_FAILED_SSILIST_CLICK_TO_OPEN_STORE);
-		return;
-	}
+	if(store_id < START_STALL_NUM){
+		if ((pl_sd = map_id2sd(account_id)) == nullptr) { // no longer online
+			clif_search_store_info_failed(sd, SSI_FAILED_SSILIST_CLICK_TO_OPEN_STORE);
+			return;
+		}
 
-	if( !searchstore_hasstore(pl_sd, sd->searchstore.type) || searchstore_getstoreid(pl_sd, sd->searchstore.type) != store_id ) { // no longer vending/buying or not same shop
-		clif_search_store_info_failed(sd, SSI_FAILED_SSILIST_CLICK_TO_OPEN_STORE);
-		return;
-	}
+		if( !searchstore_hasstore(pl_sd, sd->searchstore.type) || searchstore_getstoreid(pl_sd, sd->searchstore.type) != store_id ) { // no longer vending/buying or not same shop
+			clif_search_store_info_failed(sd, SSI_FAILED_SSILIST_CLICK_TO_OPEN_STORE);
+			return;
+		}
 
-	store_search = searchstore_getsearchfunc(sd->searchstore.type);
+		store_search = searchstore_getsearchfunc(sd->searchstore.type);
 
-	if( !store_search(pl_sd, nameid) ) {// item no longer being sold/bought
-		clif_search_store_info_failed(sd, SSI_FAILED_SSILIST_CLICK_TO_OPEN_STORE);
-		return;
+		if( !store_search(pl_sd, nameid) ) {// item no longer being sold/bought
+			clif_search_store_info_failed(sd, SSI_FAILED_SSILIST_CLICK_TO_OPEN_STORE);
+			return;
+		}
 	}
 
 	switch( sd->searchstore.effect ) {
 		case EFFECTTYPE_NORMAL:
 			// display coords
-			if( sd->bl.m != pl_sd->bl.m ) // not on same map, wipe previous marker
-				clif_search_store_info_click_ack(sd, -1, -1);
-			else
-				clif_search_store_info_click_ack(sd, pl_sd->bl.x, pl_sd->bl.y);
-			break;
+			if(store_id >= START_STALL_NUM){
+				struct s_stall_data* st;
+				if( (st = map_id2st(store_id)) == NULL )
+					return;
+				if( sd->bl.m != st->bl.m ) // not on same map, wipe previous marker
+					clif_search_store_info_click_ack(sd, -1, -1);
+				else
+					clif_search_store_info_click_ack(sd, st->bl.x, st->bl.y);
+			} else {
+				if( sd->bl.m != pl_sd->bl.m ) // not on same map, wipe previous marker
+					clif_search_store_info_click_ack(sd, -1, -1);
+				else
+					clif_search_store_info_click_ack(sd, pl_sd->bl.x, pl_sd->bl.y);
+			}
+ 			break;
 		case EFFECTTYPE_CASH:
 			// open remotely
 			// to bypass range checks
 			sd->searchstore.remote_id = account_id;
-
-			switch( sd->searchstore.type ) {
-				case SEARCHTYPE_VENDING:      vending_vendinglistreq(sd, account_id); break;
-				case SEARCHTYPE_BUYING_STORE: buyingstore_open(sd, account_id);       break;
+			
+			if(store_id >= START_STALL_NUM){
+				struct s_stall_data* st;
+				if( (st = map_id2st(store_id)) == NULL )
+					return;
+				switch( sd->searchstore.type ) {
+					case SEARCHTYPE_VENDING:      clif_stall_vending_list( sd, st ); break;
+					case SEARCHTYPE_BUYING_STORE: clif_stall_buying_list( sd, st );  break;
+				}
+			} else {
+				switch( sd->searchstore.type ) {
+					case SEARCHTYPE_VENDING:      vending_vendinglistreq(sd, account_id); break;
+					case SEARCHTYPE_BUYING_STORE: buyingstore_open(sd, account_id);       break;
+				}
 			}
 			break;
 		default:

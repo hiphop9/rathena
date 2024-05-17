@@ -18752,6 +18752,7 @@ BUILDIN_FUNC(getunitdata)
 	TBL_PET* pd = nullptr;
 	TBL_ELEM* ed = nullptr;
 	TBL_NPC* nd = nullptr;
+	TBL_STALL* sta = nullptr;
 	char* name;
 	struct script_data *data = script_getdata(st, 3);
 
@@ -18773,6 +18774,7 @@ BUILDIN_FUNC(getunitdata)
 		case BL_MER:  mc = map_id2mc(bl->id); break;
 		case BL_ELEM: ed = map_id2ed(bl->id); break;
 		case BL_NPC:  nd = map_id2nd(bl->id); break;
+		case BL_STALL:sta = map_id2st(bl->id); break;
 		default:
 			ShowWarning("buildin_getunitdata: Invalid object type!\n");
 			return SCRIPT_CMD_FAILURE;
@@ -27140,6 +27142,49 @@ BUILDIN_FUNC(opentips){
 #endif
 }
 
+BUILDIN_FUNC( open_stall ){
+	map_session_data* sd;
+	uint16 skill_id, skill_lv;
+
+	if( !script_rid2sd( sd ) ){
+		return SCRIPT_CMD_FAILURE;
+	}
+
+	if (script_isstring(st, 2)) {
+		const char *name = script_getstr(st, 2);
+
+		if (!(skill_id = skill_name2id(name))) {
+			ShowError("buildin_unitskilluseid: Invalid skill name %s passed to item bonus. Skipping.\n", name);
+			return SCRIPT_CMD_FAILURE;
+		}
+	}
+	skill_lv = script_getnum(st,3);
+
+	if( sd->itemid == 0 ){
+		ShowError( "open_stall: Called outside of an item script without item id.\n" );
+		return SCRIPT_CMD_FAILURE;
+	}
+
+	if( sd->inventory.u.items_inventory[sd->itemindex].expire_time == 0 ){
+		ShowError( "open_stall: Called from item %u, which is not a consumed delayed.\n", sd->itemid );
+		return SCRIPT_CMD_FAILURE;
+	}
+
+	if( sd->state.stall_ui_open != 0 ){
+		ShowError( "open_stall: Stall window was already open. Player %s (AID: %u, CID: %u) with item id %u.\n", sd->status.name, sd->status.account_id, sd->status.char_id, sd->itemid );
+		return SCRIPT_CMD_FAILURE;
+	}
+
+	sd->stall_expire_time = sd->inventory.u.items_inventory[sd->itemindex].expire_time;
+	sd->stallvending_level = skill_lv;
+
+	// todo check if already set
+
+	unit_skilluse_id(&sd->bl, sd->bl.id, skill_id, skill_lv);
+
+	return SCRIPT_CMD_SUCCESS;
+}
+
 BUILDIN_FUNC(setdialogalign){
 	map_session_data *sd;
 
@@ -27999,6 +28044,7 @@ struct script_function buildin_func[] = {
 	BUILDIN_DEF(has_autoloot,"?"),
 	BUILDIN_DEF(autoloot,"??"),
 	BUILDIN_DEF(opentips, "i?"),
+	BUILDIN_DEF(open_stall,"si"),
 
 	BUILDIN_DEF(setdialogalign, "i"),
 	BUILDIN_DEF(setdialogsize, "ii"),
