@@ -25455,9 +25455,14 @@ void clif_stall_showunit(map_session_data *sd, struct s_stall_data *st){
 	p.TopAccessory = st->vd.head_top;
 	p.BottomAccessory = st->vd.head_bottom;
 	p.headpalette = st->vd.hair_color;
+#if PACKETVER_MAIN_NUM >= 20180801 || PACKETVER_RE_NUM >= 20180801 || PACKETVER_ZERO_NUM >= 20180808
 	p.unknow = (st->vd.robe) * 65536 + st->vd.cloth_color;
-	safestrncpy(p.name, st->message, NAME_LENGTH);
 	p.BodyStyle = st->vd.body_style;
+#else
+	p.bodypalette = st->vd.cloth_color;
+	p.BackAccessory = st->vd.robe;
+#endif
+	safestrncpy(p.name, st->message, NAME_LENGTH);
 
 	clif_send( &p, sizeof( p ), &sd->bl, AREA );
 #endif
@@ -25544,7 +25549,9 @@ void clif_stall_vending_list(map_session_data *sd, s_stall_data *st){
 			p->items[slot].location = pc_equippoint_sub( sd, data );
 			p->items[slot].viewSprite = data->look;
 			p->items[slot].refine = st->items_inventory[i].refine;
+#if PACKETVER_MAIN_NUM >= 20191016 || PACKETVER_RE_NUM >= 20191016 || PACKETVER_ZERO_NUM >= 20191008
 			p->items[slot].enchantgrade = st->items_inventory[i].enchantgrade;
+#endif
 			slot++;
 		}
 	}
@@ -25599,7 +25606,7 @@ void clif_stall_buying_list(map_session_data *sd, s_stall_data *st){
 			p->items[k].itemType = itemtype( st->itemId[i] );
 			p->items[k].itemId = st->itemId[i];
 
-			total_price += st->price[i] * st->amount[i];
+			total_price += static_cast<uint64>(st->price[i]) * static_cast<uint64>(st->amount[i]);
 			k++;
 		}
 	}
