@@ -632,8 +632,8 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 
 	struct mail_message msg_buyer = {};
 	msg_buyer.dest_id = sd->status.char_id;
-	safestrncpy( msg_buyer.send_name, "³ëÁ¡ ¾Æ¸£¹ÙÀÌÆ®»ı", NAME_LENGTH );
-	safestrncpy( msg_buyer.title, "³ëÁ¡ ±¸¸Å ¾ÆÀÌÅÛ", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_buyer.send_name, "ë…¸ì  ì•„ë¥´ë°”ì´íŠ¸ìƒ", NAME_LENGTH );
+	safestrncpy( msg_buyer.title, "ë…¸ì  êµ¬ë§¤ ì•„ì´í…œ", MAIL_TITLE_LENGTH );
 
 	msg_buyer.status = MAIL_NEW;
 	msg_buyer.type = MAIL_INBOX_NORMAL;
@@ -642,8 +642,8 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 	struct mail_message msg_vendor = {};
 	msg_vendor.dest_id = st->vended_id;
 	msg_vendor.zeny = 0;
-	safestrncpy( msg_vendor.send_name, "³ëÁ¡ ¾Æ¸£¹ÙÀÌÆ®»ı", NAME_LENGTH );
-	safestrncpy( msg_vendor.title, "³ëÁ¡ ÆÇ¸Å ¾ÆÀÌÅÛ", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_vendor.send_name, "ë…¸ì  ì•„ë¥´ë°”ì´íŠ¸ìƒ", NAME_LENGTH );
+	safestrncpy( msg_vendor.title, "ë…¸ì  íŒë§¤ ì•„ì´í…œ", MAIL_TITLE_LENGTH );
 
 	msg_vendor.status = MAIL_NEW;
 	msg_vendor.type = MAIL_INBOX_NORMAL;
@@ -939,8 +939,8 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 	struct mail_message msg_vendor = {};
 
 	msg_vendor.dest_id = st->vended_id;
-	safestrncpy( msg_vendor.send_name, "³ëÁ¡ ¾Æ¸£¹ÙÀÌÆ®»ı", NAME_LENGTH );
-	safestrncpy( msg_vendor.title, "ÆÇ¸Å ³ëÁ¡ ¾Æ¸£¹ÙÀÌÆ® Á¾·á", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_vendor.send_name, "ë…¸ì  ì•„ë¥´ë°”ì´íŠ¸ìƒ", NAME_LENGTH );
+	safestrncpy( msg_vendor.title, "íŒë§¤ ë…¸ì  ì•„ë¥´ë°”ì´íŠ¸ ì¢…ë£Œ", MAIL_TITLE_LENGTH );
 
 	msg_vendor.status = MAIL_NEW;
 	msg_vendor.type = MAIL_INBOX_NORMAL;
@@ -952,7 +952,7 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 	strftime(timestring, 22, "%m/%d/%Y, %H:%M", localtime(&curtime));
 
 	std::ostringstream stream;
-	stream << "¹İÈ¯ ÀÏ½Ã: " << timestring << "\r\n";
+	stream << "ë°˜í™˜ ì¼ì‹œ: " << timestring << "\r\n";
 
 	int mail_index = 0;
 	for( int i = 0; i < st->vend_num; i++ ) {
@@ -962,8 +962,8 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 
 			std::shared_ptr<item_data> item_data = item_db.find(st->items_inventory[i].nameid);
 			std::string itemlstr = item_db.create_item_link(item_data).c_str();
-			stream << "\r\n¹İÈ¯ ¾ÆÀÌÅÛ: " << itemlstr << "\r\n";
-			stream << "¼ö·®: " << st->items_inventory[i].amount << "\r\n";
+			stream << "\r\në°˜í™˜ ì•„ì´í…œ: " << itemlstr << "\r\n";
+			stream << "ìˆ˜ëŸ‰: " << st->items_inventory[i].amount << "\r\n";
 			mail_index++;
 		}
 	}
@@ -1365,7 +1365,7 @@ TIMER_FUNC(stall_init){
 	}
 	stall_remove_list.clear();
 
-	ShowStatus("Done loading '" CL_WHITE "%d" CL_RESET "' vending stalls.\n", stall_db.size());
+	ShowStatus("Done loading '" CL_WHITE "%zu" CL_RESET "' vending stalls.\n", stall_db.size());
 
 	return 0;
 }
