@@ -295,6 +295,7 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 * @param count : number of different items
 * @return 0 If success, 1 - Cannot open (die, not state.prevend, trading), 2 - No cart, 3 - Count issue, 4 - Cart data isn't saved yet, 5 - No valid item found
 */
+#if PACKETVER >= 20170208
 int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 xPos, const int16 yPos, const struct STALL_BUYING_SET_sub* itemlist, int count, uint64 total_price)
 {
 	int i, j, weight, listidx;
@@ -492,6 +493,7 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 
 	return 0;
 }
+#endif
 
 bool stall_isStallOpen(unsigned int CID){
 
