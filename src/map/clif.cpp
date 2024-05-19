@@ -25337,13 +25337,6 @@ void clif_stall_vending_open(map_session_data *sd){
 		return;
 	}
 
-	// Check if a shop is already opened for this char
-	if(stall_isStallOpen(sd->status.char_id)){
-		clif_stall_ui_close(sd,100,STALLSTORE_OK);
-		clif_displaymessage(sd->fd, "You can't open 2 stalls at the same time on a char.");
-		return;
-	}
-
 	int len = MAX_INVENTORY * sizeof( struct STALL_VENDING_UI_OPEN_sub ) + sizeof( struct PACKET_ZC_STALL_VENDING_UI_OPEN );
 
 	// Preallocate the maximum size
