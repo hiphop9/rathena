@@ -22,7 +22,8 @@
 #include "vending.hpp"
 
 //Stall
-static int stall_id=START_STALL_NUM;
+static int stall_id = START_STALL_NUM;
+static int stall_uid = START_STALL_UID;
 std::vector<s_stall_data *> stall_db;
 std::vector<mail_message> stall_mail_db;
 
@@ -45,7 +46,7 @@ static const t_itemid buyingstore_blankslots[MAX_SLOTS] = { 0 };
  Create an unique vending shop id.
  @return the next vending_id
 */
-static int stall_getuid(void)
+static int stall_getid(void)
 {
 	if( stall_id >= START_STALL_NUM && !map_blid_exists(stall_id) )
 		return stall_id++;// available
@@ -59,6 +60,24 @@ static int stall_getuid(void)
 		}
 		// full loop, nothing available
 		ShowFatalError("stall_get_new_stall_id: All ids are taken. Exiting...");
+		exit(1);
+	}
+}
+
+static int stall_getuid(void)
+{
+	if( stall_uid >= START_STALL_UID && !map_blid_exists(stall_uid) )
+		return stall_uid++;// available
+	else {// find next id
+		int base_id = stall_uid;
+		while( base_id != ++stall_uid) {
+			if(stall_uid < START_STALL_UID)
+				stall_uid = START_STALL_UID;
+			if( !map_blid_exists(stall_id) )
+				return stall_uid++;// available
+		}
+		// full loop, nothing available
+		ShowFatalError("stall_get_new_stall_uid: All uids are taken. Exiting...");
 		exit(1);
 	}
 }
@@ -167,7 +186,7 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 	}
 
 	struct s_stall_data *st = (struct s_stall_data*)aCalloc(1, sizeof(struct s_stall_data));
-	st->vended_id = sd->status.char_id; // Got it now to send items back in case something wrong
+	st->owner_id = sd->status.char_id; // Got it now to send items back in case something wrong
 
 	if (save_settings&CHARSAVE_VENDING) // Avoid invalid data from saving
 		chrif_save(sd, CSAVE_INVENTORY);
@@ -216,9 +235,10 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 		return 5;
 	}
 
-	st->id = sd->bl.id;
+	st->vid = sd->bl.id;
 	st->type = 0; // TODO vending
-	st->vender_id = stall_getuid();
+	st->vender_id = stall_getid();
+	st->unique_id = stall_getuid();
 	st->vend_num = i;
 	st->expire_time = sd->stall_expire_time;
 	safestrncpy(st->message, message, MESSAGE_SIZE);
@@ -245,11 +265,11 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 
 	Sql_EscapeString( mmysql_handle, message_sql, st->message );
 
-	if( Sql_Query( mmysql_handle, "INSERT INTO `%s`(`id`, `char_id`, `type`, `class`, `sex`, `map`, `x`, `y`,"
+	if( Sql_Query( mmysql_handle, "INSERT INTO `%s`(`id`, `uid`, `char_id`, `type`, `class`, `sex`, `map`, `x`, `y`,"
 								  "`title`, `hair`, `hair_color`, `body`, `weapon`, `shield`, `head_top`, `head_mid`, `head_bottom`, `robe`,"
 								  "`clothes_color`, `name`, `expire_time`) "
-		"VALUES( %d, %d, %d, %d, '%c', '%s', %d, %d, '%s', %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %u  );",
-		stalls_table, st->vender_id, st->vended_id, st->type, st->vd.class_, st->vd.sex == SEX_FEMALE ? 'F' : 'M', mapindex_id2name(st->bl.m), st->bl.x, st->bl.y,
+		"VALUES( %d, %d, %d, %d, %d, '%c', '%s', %d, %d, '%s', %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %u  );",
+		stalls_table, st->vender_id, st->unique_id, st->owner_id, st->type, st->vd.class_, st->vd.sex == SEX_FEMALE ? 'F' : 'M', mapindex_id2name(st->bl.m), st->bl.x, st->bl.y,
 		message_sql, st->vd.hair_style, st->vd.hair_color, st->vd.body_style, st->vd.weapon, st->vd.shield, st->vd.head_top, st->vd.head_mid, st->vd.head_bottom, st->vd.robe,
 		st->vd.cloth_color, st->name, st->expire_time) != SQL_SUCCESS ) {
 		Sql_ShowDebug(mmysql_handle);
@@ -370,7 +390,7 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 	}
 
 	struct s_stall_data *st = (struct s_stall_data*)aCalloc(1, sizeof(struct s_stall_data));
-	st->vended_id = sd->status.char_id; // Got it now to send items back in case something wrong
+	st->owner_id = sd->status.char_id; // Got it now to send items back in case something wrong
 
 	if (save_settings&CHARSAVE_VENDING) // Avoid invalid data from saving
 		chrif_save(sd, CSAVE_INVENTORY);
@@ -450,9 +470,10 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 	}
 
 	pc_payzeny(sd, temp_price, LOG_TYPE_BUYING_STORE, NULL);
-	st->id = sd->bl.id;
+	st->bid = sd->bl.id;
 	st->type = 1;
-	st->vender_id = stall_getuid();
+	st->vender_id = stall_getid();
+	st->unique_id = stall_getuid();
 	st->vend_num = i;
 	st->expire_time = sd->stall_expire_time;
 	safestrncpy(st->message, message, MESSAGE_SIZE);
@@ -479,11 +500,11 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 
 	Sql_EscapeString( mmysql_handle, message_sql, st->message );
 
-	if( Sql_Query( mmysql_handle, "INSERT INTO `%s`(`id`, `char_id`, `type`, `class`, `sex`, `map`, `x`, `y`,"
+	if( Sql_Query( mmysql_handle, "INSERT INTO `%s`(`id`, `uid`, `char_id`, `type`, `class`, `sex`, `map`, `x`, `y`,"
 		                          "`title`, `hair`, `hair_color`, `body`, `weapon`, `shield`, `head_top`, `head_mid`, `head_bottom`, `robe`,"
 								  "`clothes_color`, `name`, `expire_time`) "
-		"VALUES( %d, %d, %d, %d, '%c', '%s', %d, %d, '%s', %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %u  );",
-		stalls_table, st->vender_id, st->vended_id, st->type, st->vd.class_, st->vd.sex == SEX_FEMALE ? 'F' : 'M', mapindex_id2name(st->bl.m), st->bl.x, st->bl.y,
+		"VALUES( %d, %d, %d, %d, %d, '%c', '%s', %d, %d, '%s', %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %u  );",
+		stalls_table, st->vender_id, st->unique_id, st->owner_id, st->type, st->vd.class_, st->vd.sex == SEX_FEMALE ? 'F' : 'M', mapindex_id2name(st->bl.m), st->bl.x, st->bl.y,
 		message_sql, st->vd.hair_style, st->vd.hair_color, st->vd.body_style, st->vd.weapon, st->vd.shield, st->vd.head_top, st->vd.head_mid, st->vd.head_bottom, st->vd.robe,
 		st->vd.cloth_color, st->name, st->expire_time) != SQL_SUCCESS ) {
 		Sql_ShowDebug(mmysql_handle);
@@ -518,10 +539,10 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 }
 #endif
 
-bool stall_isStallOpen(unsigned int CID){
+bool stall_isStallOpen(unsigned int CID, short type){
 
 	auto itStalls = std::find_if(stall_db.begin(), stall_db.end(), [&](s_stall_data *const & itst) {
-						return CID == itst->vended_id;
+						return (CID == itst->owner_id && type == itst->type);
 					});
 
 	if(itStalls != 	stall_db.end()){
@@ -598,17 +619,17 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 	if( st == NULL )
 		return; // invalid shop
 
-	if(!stall_isStallOpen(st->vended_id)){
+	if(!stall_isStallOpen(st->owner_id, st->type)){
 		clif_displaymessage(sd->fd, "This stall is not opened anymore.");
 		return;
 	}
 
-	if( st->vender_id != uid || st->vended_id != aid ) { // shop has changed
+	if( st->vender_id != uid || st->unique_id != aid ) { // shop has changed
 		clif_buyvending(sd, 0, 0, 6);  // store information was incorrect
 		return;
 	}
 
-	if( !searchstore_queryremote(sd, st->vended_id) && (sd->bl.m != st->bl.m || !check_distance_bl(&sd->bl, &st->bl, AREA_SIZE)) )
+	if( !searchstore_queryremote(sd, st->unique_id) && (sd->bl.m != st->bl.m || !check_distance_bl(&sd->bl, &st->bl, AREA_SIZE)) )
 		return; // shop too far away
 
 	if( count < 1 || count > MAX_STALL_SLOT || count > st->vend_num )
@@ -665,7 +686,7 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 	msg_buyer.timestamp = time( nullptr );
 
 	struct mail_message msg_vendor = {};
-	msg_vendor.dest_id = st->vended_id;
+	msg_vendor.dest_id = st->owner_id;
 	msg_vendor.zeny = 0;
 	safestrncpy( msg_vendor.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
 	safestrncpy( msg_vendor.title, "<MSG>2937</MSG>", MAIL_TITLE_LENGTH );
@@ -778,12 +799,12 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 	if( st == NULL )
 		return; // invalid shop
 
-	if(!stall_isStallOpen(st->vended_id)){
+	if(!stall_isStallOpen(st->owner_id, st->type)){
 		clif_displaymessage(sd->fd, "This stall is not opened anymore.");
 		return;
 	}
 
-	if( st->vender_id != uid || st->vended_id != aid ) { // shop has changed
+	if( st->vender_id != uid || st->unique_id != aid ) { // shop has changed
 		clif_buyingstore_trade_failed_seller(sd, BUYINGSTORE_TRADE_SELLER_FAILED, 0);
 		return;
 	}
@@ -801,7 +822,7 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 		return;
 	}
 
-	if( !searchstore_queryremote(sd, st->vended_id) && (sd->bl.m != st->bl.m || !check_distance_bl(&sd->bl, &st->bl, AREA_SIZE)) ){
+	if( !searchstore_queryremote(sd, st->unique_id) && (sd->bl.m != st->bl.m || !check_distance_bl(&sd->bl, &st->bl, AREA_SIZE)) ){
 		clif_buyingstore_trade_failed_seller(sd, BUYINGSTORE_TRADE_SELLER_FAILED, 0);
 		return; // shop too far away
 	}
@@ -860,17 +881,17 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 	struct mail_message msg_vendor = {};
 	msg_vendor.dest_id = sd->status.char_id;
 	msg_vendor.zeny = 0;
-	safestrncpy( msg_vendor.send_name, "<MSG>2937</MSG>", NAME_LENGTH );
-	safestrncpy( msg_vendor.title, "<MSG>2943</MSG>", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_vendor.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
+	safestrncpy( msg_vendor.title, "<MSG>2937</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_vendor.status = MAIL_NEW;
 	msg_vendor.type = MAIL_INBOX_NORMAL;
 	msg_vendor.timestamp = time( nullptr );
 
 	struct mail_message msg_buyer = {};
-	msg_buyer.dest_id = st->vended_id;
-	safestrncpy( msg_buyer.send_name, "<MSG>2938</MSG>", NAME_LENGTH );
-	safestrncpy( msg_buyer.title, "<MSG>2943</MSG>", MAIL_TITLE_LENGTH );
+	msg_buyer.dest_id = st->owner_id;
+	safestrncpy( msg_buyer.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
+	safestrncpy( msg_buyer.title, "<MSG>2938</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_buyer.status = MAIL_NEW;
 	msg_buyer.type = MAIL_INBOX_NORMAL;
@@ -927,7 +948,7 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 	if(!intif_Mail_send( 0, &msg_buyer )){
 		stall_mail_db.push_back(msg_buyer);
 	}
-
+	
 	bool remain_items = false;
 	for( int i = 0; i < st->vend_num; i++ ){
 		if(st->amount[i] > 0){
@@ -946,12 +967,12 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 	}
 }
 
-void stall_close(map_session_data* sd){
+void stall_close(map_session_data* sd, int uid){
 	auto itStalls = std::find_if(stall_db.begin(), stall_db.end(), [&](s_stall_data *const & itst) {
-						return sd->status.char_id == itst->vended_id;
+						return (sd->status.char_id == itst->owner_id && uid == itst->unique_id);
 					});
 
-	if(itStalls != 	stall_db.end()){
+	if(itStalls != stall_db.end()){
 		switch((*itStalls)->type){
 			case 0:
 				stall_vending_getbackitems(*itStalls);
@@ -962,7 +983,6 @@ void stall_close(map_session_data* sd){
 				clif_stall_ui_close(sd,101,STALLSTORE_OK);
 				break;
 		}
-
 		stall_remove(*itStalls);
 	}
 }
@@ -988,9 +1008,9 @@ void stall_buying_save(struct s_stall_data* st){
 void stall_vending_getbackitems(struct s_stall_data* st){
 	struct mail_message msg_vendor = {};
 
-	msg_vendor.dest_id = st->vended_id;
+	msg_vendor.dest_id = st->owner_id;
 	safestrncpy( msg_vendor.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
-	safestrncpy( msg_vendor.title, "<MSG>2940</MSG>", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_vendor.title, "<MSG>2939</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_vendor.status = MAIL_NEW;
 	msg_vendor.type = MAIL_INBOX_NORMAL;
@@ -1029,7 +1049,7 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 void stall_buying_getbackzeny(struct s_stall_data* st){
 	struct mail_message msg_buyer = {};
 
-	msg_buyer.dest_id = st->vended_id;
+	msg_buyer.dest_id = st->owner_id;
 	safestrncpy( msg_buyer.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
 	safestrncpy( msg_buyer.title, "<MSG>2940</MSG>", MAIL_TITLE_LENGTH );
 
@@ -1062,28 +1082,36 @@ void stall_buying_getbackzeny(struct s_stall_data* st){
 }
 
 void stall_remove(struct s_stall_data* st){
-	if( Sql_Query( mmysql_handle, "DELETE FROM `%s` WHERE `id` = %d;", stalls_table, st->vender_id ) != SQL_SUCCESS ) {
+	if( Sql_Query( mmysql_handle, "DELETE FROM `%s` WHERE `id` = %d AND `uid` = %d;", stalls_table, st->vender_id) != SQL_SUCCESS ) {
 			Sql_ShowDebug(mmysql_handle);
 	}
+
+	map_session_data *vsd, *bsd;
+
 	switch(st->type){
-		case 0:
-			if( Sql_Query( mmysql_handle, "DELETE FROM `%s` WHERE `stalls_id` = %d;", stalls_vending_items_table, st->vender_id ) != SQL_SUCCESS ) {
+	case 0: {
+			if (Sql_Query(mmysql_handle, "DELETE FROM `%s` WHERE `stalls_id` = %d;", stalls_vending_items_table, st->vender_id) != SQL_SUCCESS) {
 				Sql_ShowDebug(mmysql_handle);
 			}
+			vsd = map_id2sd(st->vid);
+			if (vsd)
+				clif_msg(vsd, 2921);
+			st->vid = 0;
+		}
 			break;
-		case 1:
+		case 1: {
 			if( Sql_Query( mmysql_handle, "DELETE FROM `%s` WHERE `stalls_id` = %d;", stalls_buying_items_table, st->vender_id ) != SQL_SUCCESS ) {
 				Sql_ShowDebug(mmysql_handle);
 			}
+			bsd = map_id2sd(st->bid);
+			if (bsd)
+				clif_msg(bsd, 2921);
+			st->bid = 0;
+		}
 			break;
 	}
 	if(st->timer != INVALID_TIMER)
 		delete_timer(st->timer, stall_timeout);
-
-	map_session_data* stsd = map_id2sd(st->id); //PC official added
-	if (stsd)
-		clif_msg(stsd, 2921);
-	st->id = 0;
 
 	stall_db.erase(
 	std::remove_if(stall_db.begin(), stall_db.end(), [&](s_stall_data * const & itst) {
@@ -1104,7 +1132,7 @@ TIMER_FUNC (stall_timeout){
 	st->timer = INVALID_TIMER;
 
 	auto itStalls = std::find_if(stall_db.begin(), stall_db.end(), [&](s_stall_data *const & itst) {
-						return st->vender_id == itst->vender_id;
+						return st->unique_id == itst->unique_id;
 					});
 
 	if(itStalls != 	stall_db.end()){
@@ -1176,7 +1204,7 @@ bool stall_searchall(map_session_data* sd, const struct s_search_store_search* s
 					std::shared_ptr<s_search_store_info_item> ssitem = std::make_shared<s_search_store_info_item>();
 
 					ssitem->store_id = st->vender_id;
-					ssitem->account_id = st->vended_id;
+					ssitem->account_id = st->unique_id;
 					safestrncpy( ssitem->store_name, st->message, sizeof( ssitem->store_name ) );
 					ssitem->nameid = st->items_inventory[i].nameid;
 					ssitem->amount = st->items_inventory[i].amount;
@@ -1217,7 +1245,7 @@ bool stall_searchall(map_session_data* sd, const struct s_search_store_search* s
 					std::shared_ptr<s_search_store_info_item> ssitem = std::make_shared<s_search_store_info_item>();
 
 					ssitem->store_id = st->vender_id;
-					ssitem->account_id = st->vended_id;
+					ssitem->account_id = st->unique_id;
 					safestrncpy( ssitem->store_name, st->message, sizeof( ssitem->store_name ) );
 					ssitem->nameid = st->itemId[i];
 					ssitem->amount = st->amount[i];
@@ -1261,7 +1289,7 @@ TIMER_FUNC(stall_init){
 	std::vector<int> stall_remove_list;
 
 	if (Sql_Query(mmysql_handle,
-		"SELECT `id`, `char_id`, `type`, `class`, `sex`, `map`, `x`, `y`,"
+		"SELECT `id`, `uid`, `char_id`, `type`, `class`, `sex`, `map`, `x`, `y`,"
 		"`title`, `hair`, `hair_color`, `body`, `weapon`, `shield`, `head_top`, `head_mid`, `head_bottom`, `robe`,"
 		"`clothes_color`, `name`, `expire_time` "
 		"FROM `%s` ",
@@ -1278,29 +1306,30 @@ TIMER_FUNC(stall_init){
 		st = NULL;
 		st = (struct s_stall_data*)aCalloc(1, sizeof(struct s_stall_data));
 		Sql_GetData(mmysql_handle, 0, &data, NULL); st->vender_id = atoi(data);
-		Sql_GetData(mmysql_handle, 1, &data, NULL); st->vended_id = atoi(data);
+		Sql_GetData(mmysql_handle, 1, &data, NULL); st->unique_id = atoi(data);
+		Sql_GetData(mmysql_handle, 2, &data, NULL); st->owner_id = atoi(data);
 		st->bl.id = st->vender_id;
-		Sql_GetData(mmysql_handle, 2, &data, NULL); st->type = atoi(data);
-		Sql_GetData(mmysql_handle, 3, &data, NULL); st->vd.class_ = atoi(data);
-		Sql_GetData(mmysql_handle, 4, &data, NULL); st->vd.sex = (data[0] == 'F') ? SEX_FEMALE : SEX_MALE;
+		Sql_GetData(mmysql_handle, 3, &data, NULL); st->type = atoi(data);
+		Sql_GetData(mmysql_handle, 4, &data, NULL); st->vd.class_ = atoi(data);
+		Sql_GetData(mmysql_handle, 5, &data, NULL); st->vd.sex = (data[0] == 'F') ? SEX_FEMALE : SEX_MALE;
 		char esc_mapname[NAME_LENGTH*2+1];
-		Sql_GetData(mmysql_handle, 5, &data, &len); safestrncpy(esc_mapname, data, zmin(len + 1, MESSAGE_SIZE));
+		Sql_GetData(mmysql_handle, 6, &data, &len); safestrncpy(esc_mapname, data, zmin(len + 1, MESSAGE_SIZE));
 		st->bl.m = mapindex_name2id(esc_mapname);
-		Sql_GetData(mmysql_handle, 6, &data, NULL); st->bl.x = atoi(data);
-		Sql_GetData(mmysql_handle, 7, &data, NULL); st->bl.y = atoi(data);
-		Sql_GetData(mmysql_handle, 8, &data, &len); safestrncpy(st->message, data, zmin(len + 1, MESSAGE_SIZE));
-		Sql_GetData(mmysql_handle, 9, &data, NULL); st->vd.hair_style = atoi(data);
-		Sql_GetData(mmysql_handle, 10, &data, NULL); st->vd.hair_color = atoi(data);
-		Sql_GetData(mmysql_handle, 11, &data, NULL); st->vd.body_style = atoi(data);
-		Sql_GetData(mmysql_handle, 12, &data, NULL); st->vd.weapon = atoi(data);
-		Sql_GetData(mmysql_handle, 13, &data, NULL); st->vd.shield = atoi(data);
-		Sql_GetData(mmysql_handle, 14, &data, NULL); st->vd.head_top = atoi(data);
-		Sql_GetData(mmysql_handle, 15, &data, NULL); st->vd.head_mid = atoi(data);
-		Sql_GetData(mmysql_handle, 16, &data, NULL); st->vd.head_bottom = atoi(data);
-		Sql_GetData(mmysql_handle, 17, &data, NULL); st->vd.robe = atoi(data);
-		Sql_GetData(mmysql_handle, 18, &data, NULL); st->vd.cloth_color = atoi(data);
-		Sql_GetData(mmysql_handle, 19, &data, &len); safestrncpy(st->name, data, zmin(len + 1, MESSAGE_SIZE));
-		Sql_GetData(mmysql_handle, 20, &data, NULL); st->expire_time = strtoul(data, nullptr, 10);
+		Sql_GetData(mmysql_handle, 7, &data, NULL); st->bl.x = atoi(data);
+		Sql_GetData(mmysql_handle, 8, &data, NULL); st->bl.y = atoi(data);
+		Sql_GetData(mmysql_handle, 9, &data, &len); safestrncpy(st->message, data, zmin(len + 1, MESSAGE_SIZE));
+		Sql_GetData(mmysql_handle, 10, &data, NULL); st->vd.hair_style = atoi(data);
+		Sql_GetData(mmysql_handle, 11, &data, NULL); st->vd.hair_color = atoi(data);
+		Sql_GetData(mmysql_handle, 12, &data, NULL); st->vd.body_style = atoi(data);
+		Sql_GetData(mmysql_handle, 13, &data, NULL); st->vd.weapon = atoi(data);
+		Sql_GetData(mmysql_handle, 14, &data, NULL); st->vd.shield = atoi(data);
+		Sql_GetData(mmysql_handle, 15, &data, NULL); st->vd.head_top = atoi(data);
+		Sql_GetData(mmysql_handle, 16, &data, NULL); st->vd.head_mid = atoi(data);
+		Sql_GetData(mmysql_handle, 17, &data, NULL); st->vd.head_bottom = atoi(data);
+		Sql_GetData(mmysql_handle, 18, &data, NULL); st->vd.robe = atoi(data);
+		Sql_GetData(mmysql_handle, 19, &data, NULL); st->vd.cloth_color = atoi(data);
+		Sql_GetData(mmysql_handle, 20, &data, &len); safestrncpy(st->name, data, zmin(len + 1, MESSAGE_SIZE));
+		Sql_GetData(mmysql_handle, 21, &data, NULL); st->expire_time = strtoul(data, nullptr, 10);
 		st->bl.type = BL_STALL;
 		stall_db.push_back(st);
 	}

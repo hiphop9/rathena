@@ -14233,9 +14233,10 @@ void clif_parse_PurchaseReq2(int fd, map_session_data* sd){
 #if PACKETVER >= 20100105
 	struct PACKET_CZ_PC_PURCHASE_ITEMLIST_FROMMC2* p = (struct PACKET_CZ_PC_PURCHASE_ITEMLIST_FROMMC2*)RFIFOP( fd, 0 );
 
-	if(p->UniqueID >= START_STALL_NUM)
+	if(p->UniqueID >= START_STALL_NUM) {
 		stall_vending_purchasereq( sd, p->AID, p->UniqueID, (uint8*)p->list, ( p->packetLength - sizeof( *p ) ) / sizeof( struct CZ_PURCHASE_ITEM_FROMMC ) );
-	else
+		clif_msg_color(sd, 2917, color_table[COLOR_CYAN]);
+	} else
 		vending_purchasereq( sd, p->AID, p->UniqueID, (uint8*)p->list, ( p->packetLength - sizeof( *p ) ) / sizeof( struct CZ_PURCHASE_ITEM_FROMMC ) );
 
 	// whether it fails or not, the buy window is closed
@@ -25525,9 +25526,9 @@ void clif_stall_vending_list(map_session_data *sd, s_stall_data *st){
 
 	p->packetType = HEADER_ZC_STALL_VENDING_LIST_REQUEST;
 	p->PacketLength = len;
-	p->unique_id = st->vended_id;
+	p->unique_id = st->unique_id;
 	p->vender_id = st->vender_id;
-	if(st->vended_id == sd->status.char_id)
+	if(st->owner_id == sd->status.char_id)
 		p->myStall = 1;
 	else
 		p->myStall = 0;
@@ -25590,9 +25591,9 @@ void clif_stall_buying_list(map_session_data *sd, s_stall_data *st){
 
 	p->packetType = HEADER_ZC_STALL_BUYING_LIST_REQUEST;
 	p->PacketLength = len;
-	p->unique_id = st->vended_id;
+	p->unique_id = st->unique_id;
 	p->vender_id = st->vender_id;
-	if(st->vended_id == sd->status.char_id)
+	if(st->owner_id == sd->status.char_id)
 		p->myStall = 1;
 	else
 		p->myStall = 0;

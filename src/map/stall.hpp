@@ -10,6 +10,7 @@
 #include "unit.hpp" // struct unit_data
 
 #define START_STALL_NUM 90000000
+#define START_STALL_UID 0
 #define MAX_STALL_SLOT 5
 #define BUYINGSTALL_MAX_PRICE 99990000
 #define BUYINGSTALL_MAX_AMOUNT 9999
@@ -26,6 +27,7 @@ enum e_stall_result
 {
 	STALLSTORE_OK                    = 0,  //
 	STALLSTORE_POSITION              = 2,  // Not allowed on tte position
+	STALLSTORE_LOCATION				 = 3,
 	STALLSTORE_OVERWEIGHT            = 8,  // Overweight error
 };
 
@@ -39,10 +41,12 @@ struct s_stall_data {
 	uint32 itemId[MAX_STALL_SLOT];
 	uint16 amount[MAX_STALL_SLOT];
 
-	bool type; // 0 vending 1 buying
+	short type; // 0 vending 1 buying
 
-	int id;
-	int vended_id, vender_id;
+	int vid;
+	int bid;
+	int owner_id;
+	int unique_id, vender_id;
 	int vend_num;
 	int timer;
 	char message[MESSAGE_SIZE];
@@ -56,6 +60,7 @@ extern std::vector<mail_message> stall_mail_db;
 void do_init_stall(void);
 void do_final_stall(void);
 
+static int stall_getuid(void);
 int8 stall_ui_open(map_session_data* sd, uint16 skill_lv, short type);
 int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 xPos, const int16 yPos, uint8 *data, int count);
 int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 xPos, const int16 yPos, const struct STALL_BUYING_SET_sub* itemlist, int count, uint64 total_price);
@@ -66,10 +71,10 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 void stall_remove(struct s_stall_data* st);
 void stall_vending_save(struct s_stall_data* st);
 void stall_buying_save(struct s_stall_data* st);
-void stall_close(map_session_data* sd);
+void stall_close(map_session_data* sd, int uid);
 void stall_vending_getbackitems(struct s_stall_data* st);
 void stall_buying_getbackzeny(struct s_stall_data* st);
-bool stall_isStallOpen(unsigned int CID);
+bool stall_isStallOpen(unsigned int CID, short type);
 bool stall_searchall(map_session_data* sd, const struct s_search_store_search* s, const struct s_stall_data* st, short type);
 TIMER_FUNC(stall_timeout);
 TIMER_FUNC(stall_init);

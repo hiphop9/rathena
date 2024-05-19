@@ -61,6 +61,7 @@
 #include "pc_groups.hpp"
 #include "pet.hpp"
 #include "quest.hpp"
+#include "stall.hpp"
 #include "storage.hpp"
 
 using namespace rathena;
@@ -27179,6 +27180,12 @@ BUILDIN_FUNC( open_stall ){
 	sd->stallvending_level = skill_lv;
 
 	// todo check if already set
+
+	short type = (skill_id == ALL_ASSISTANT_BUYING) ? 1 : 0;
+	if (stall_isStallOpen(sd->status.char_id, type)) {
+		clif_skill_fail(*sd, skill_id, USESKILL_FAIL_EXIST_STORE_ASSISTANT, 0, skill_id);
+		return SCRIPT_CMD_SUCCESS;
+	}
 
 	unit_skilluse_id(&sd->bl, sd->bl.id, skill_id, skill_lv);
 
