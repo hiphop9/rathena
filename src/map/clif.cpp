@@ -19369,9 +19369,10 @@ static void clif_parse_ReqTradeBuyingStore( int fd, map_session_data* sd ){
 		return;
 	}
 
-	if(p->storeId >= START_STALL_NUM)
+	if(p->storeId >= START_STALL_NUM) {
 		stall_buying_purchasereq(sd, p->AID, p->storeId, p->items, packet_len / sizeof( struct PACKET_CZ_REQ_TRADE_BUYING_STORE_sub ));
-	else
+		clif_msg(sd, 2947);
+	} else
 		buyingstore_trade( sd, p->AID, p->storeId, p->items, packet_len / sizeof( struct PACKET_CZ_REQ_TRADE_BUYING_STORE_sub ) );
 }
 

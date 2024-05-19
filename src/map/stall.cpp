@@ -120,13 +120,6 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 		return 1; // can't open stalls lying dead || didn't use via the skill (wpe/hack) || can't have 2 shops at once
 	}
 
-	// Test if shop is already set for this char - Has been check before but use to avoid wpe / packets manipulation
-	if(stall_isStallOpen(sd->status.char_id)){
-		clif_displaymessage(sd->fd, "You can't open 2 stalls at the same time on a char.");
-		clif_stall_ui_close(sd,100,STALLSTORE_OK);
-		return 1;
-	}
-
 	// check number of items in shop
 	if( count < 1 || count > 2 + sd->stallvending_level ) { // invalid item count
 		clif_skill_fail(*sd, ALL_ASSISTANT_VENDING, USESKILL_FAIL_LEVEL, 0);
@@ -136,19 +129,33 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 
 	// check if shop is allow on the cell
 	if( map_getcell(sd->bl.m,xPos,yPos,CELL_CHKNOVENDING) ) {
-		clif_stall_ui_close(sd,100,2);
+		clif_stall_ui_close(sd,100,STALLSTORE_POSITION);
+		return 1;
+	}
+	
+	// Check if the cell is walkable before setting up the stall
+	if (!map_getcell(sd->bl.m, xPos, yPos, CELL_CHKPASS)) {
+		clif_stall_ui_close(sd,100,STALLSTORE_POSITION);
+		return 1;
+	}
+
+	if (map_foreachincell(check_player_at_location, sd->bl.m, xPos, yPos, BL_PC)) {
+        clif_stall_ui_close(sd,101,STALLSTORE_LOCATION);
+		return 1;
+	}
+
+	if (map_foreachincell(check_player_at_location, sd->bl.m, xPos, yPos, BL_STALL)) {
+        clif_stall_ui_close(sd,101,STALLSTORE_LOCATION);
 		return 1;
 	}
 
 	npc_near_bl.m = sd->bl.m;
 	npc_near_bl.x = xPos;
 	npc_near_bl.y = yPos;
+
 	if( npc_isnear(&npc_near_bl) ) {
-		char output[150];
-		sprintf(output, msg_txt(sd,662), battle_config.min_npc_vendchat_distance);
-		clif_displaymessage(sd->fd, output);
-		clif_stall_ui_close(sd,100,2);
-		return true;
+		clif_stall_ui_close(sd,100,STALLSTORE_LOCATION);
+		return 1;
 	}
 
 	struct s_stall_data *st = (struct s_stall_data*)aCalloc(1, sizeof(struct s_stall_data));
@@ -201,6 +208,7 @@ int8 stall_vending_setup(map_session_data* sd, const char* message, const int16 
 		return 5;
 	}
 
+	st->id = sd->bl.id;
 	st->type = 0; // TODO vending
 	st->vender_id = stall_getuid();
 	st->vend_num = i;
@@ -310,9 +318,36 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 		return 1; // can't open stalls lying dead || didn't use via the skill (wpe/hack) || can't have 2 shops at once
 	}
 
-	// Test if shop is already set for this char - Has been check before but use to avoid wpe / packets manipulation
-	if(stall_isStallOpen(sd->status.char_id)){
-		clif_displaymessage(sd->fd, "You can't open 2 stalls at the same time on a char.");
+	// check number of items in shop
+	if( count < 1 || count > 2 + sd->stallvending_level ) { // invalid item count
+		clif_stall_ui_close(sd,101,STALLSTORE_OK);
+		return 3;
+	}
+	
+	// Check if the cell is walkable before setting up the stall
+	if (!map_getcell(sd->bl.m, xPos, yPos, CELL_CHKPASS)) {
+		clif_stall_ui_close(sd,101,STALLSTORE_POSITION);
+		return 1;
+	}
+
+	// check if shop is allow on the cell
+	if( map_getcell(sd->bl.m,xPos,yPos,CELL_CHKNOVENDING) ) {
+		clif_stall_ui_close(sd,101,STALLSTORE_LOCATION);
+		return 1;
+	}
+
+	if (map_foreachincell(check_player_at_location, sd->bl.m, xPos, yPos, BL_PC)) {
+        clif_stall_ui_close(sd,101,STALLSTORE_LOCATION);
+		return 1;
+	}
+
+	if (map_foreachincell(check_player_at_location, sd->bl.m, xPos, yPos, BL_STALL)) {
+        clif_stall_ui_close(sd,101,STALLSTORE_LOCATION);
+		return 1;
+	}
+
+	if(total_price <= 0){
+		clif_displaymessage(sd->fd, "Buying prices can't be 0.");
 		clif_stall_ui_close(sd,101,STALLSTORE_OK);
 		return 1;
 	}
@@ -320,30 +355,9 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 	npc_near_bl.m = sd->bl.m;
 	npc_near_bl.x = xPos;
 	npc_near_bl.y = yPos;
+
 	if( npc_isnear(&npc_near_bl) ) {
-		char output[150];
-		sprintf(output, msg_txt(sd,662), battle_config.min_npc_vendchat_distance);
-		clif_displaymessage(sd->fd, output);
-		clif_stall_ui_close(sd,101,STALLSTORE_POSITION);
-		return true;
-	}
-
-	// check number of items in shop
-	if( count < 1 || count > 2 + sd->stallvending_level ) { // invalid item count
-		clif_stall_ui_close(sd,101,STALLSTORE_OK);
-		return 3;
-	}
-
-	// check if shop is allow on the cell
-	if( map_getcell(sd->bl.m,xPos,yPos,CELL_CHKNOVENDING) ) {
-		clif_displaymessage (sd->fd, msg_txt(sd,204)); // "You can't open a shop on this cell."
-		clif_stall_ui_close(sd,101,STALLSTORE_POSITION);
-		return 1;
-	}
-
-	if(total_price <= 0){
-		clif_displaymessage(sd->fd, "Buying prices can't be 0.");
-		clif_stall_ui_close(sd,101,STALLSTORE_OK);
+		clif_stall_ui_close(sd,101,STALLSTORE_LOCATION);
 		return 1;
 	}
 
@@ -428,6 +442,7 @@ int8 stall_buying_setup(map_session_data* sd, const char* message, const int16 x
 	}
 
 	pc_payzeny(sd, temp_price, LOG_TYPE_BUYING_STORE, NULL);
+	st->id = sd->bl.id;
 	st->type = 1;
 	st->vender_id = stall_getuid();
 	st->vend_num = i;
@@ -634,8 +649,8 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 
 	struct mail_message msg_buyer = {};
 	msg_buyer.dest_id = sd->status.char_id;
-	safestrncpy( msg_buyer.send_name, "노점 아르바이트생", NAME_LENGTH );
-	safestrncpy( msg_buyer.title, "노점 구매 아이템", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_buyer.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
+	safestrncpy( msg_buyer.title, "<MSG>2938</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_buyer.status = MAIL_NEW;
 	msg_buyer.type = MAIL_INBOX_NORMAL;
@@ -644,8 +659,8 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 	struct mail_message msg_vendor = {};
 	msg_vendor.dest_id = st->vended_id;
 	msg_vendor.zeny = 0;
-	safestrncpy( msg_vendor.send_name, "노점 아르바이트생", NAME_LENGTH );
-	safestrncpy( msg_vendor.title, "노점 판매 아이템", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_vendor.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
+	safestrncpy( msg_vendor.title, "<MSG>2937</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_vendor.status = MAIL_NEW;
 	msg_vendor.type = MAIL_INBOX_NORMAL;
@@ -657,8 +672,10 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 	strftime(timestring, 22, "%m/%d/%Y, %H:%M", localtime(&curtime));
 
 	std::ostringstream stream;
-	stream << "<MSG>2932</MSG>" << timestring << "\r\n";
+	stream << "<MSG>2932</MSG>" << timestring << "\r\n\r\n";
 
+	uint32 totalfee = 0;
+	uint32 totalprice = 0;
 	for( i = 0; i < count; i++ ) {
 		short amount = *(uint16*)(data + 4*i + 0);
 		short idx    = *(uint16*)(data + 4*i + 2);
@@ -671,22 +688,43 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 		msg_buyer.item[i].amount = amount;
 
 		std::shared_ptr<item_data> item_data = item_db.find(st->items_inventory[idx].nameid);
-		std::string itemlstr = item_db.create_item_link(item_data).c_str();
-		stream << "\r\n<MSG>2933</MSG>" << itemlstr << "\r\n";
+		std::string itemlstr = item_db.create_item_link(item_data, true).c_str();
+		stream << "<MSG>2933</MSG>" << itemlstr << "\r\n";
 
 		stream << "<MSG>2935</MSG>" << st->price[idx] << "z \r\n";
 		stream << "<MSG>2934</MSG>" << amount << "\r\n";
-		stream << "<MSG>2936</MSG>" << st->price[idx] * amount << "z \r\n";
 
 		uint32 price = st->price[idx] * amount;
+		uint32 fee = price * STALL_TAX / 100;
+		uint32 countedprice = st->price[idx] * amount;
 		if(st->price[idx] > 10000000)
-			price = price * (100 - STALL_TAX) / 100;
+			countedprice = price - fee;
 
-		msg_vendor.zeny += price;
+		stream << "<MSG>3185</MSG>" << fee << "\r\n";
+
+		msg_vendor.zeny += countedprice;
+		totalfee += fee;
+		totalprice += price;
 	}
+	stream << "<MSG>3186</MSG>" << totalfee << "z \r\n";
+	stream << "<MSG>2936</MSG>" << msg_vendor.zeny << "z \r\n";
 	stream << "\0";
 
-	safestrncpy( msg_buyer.body, const_cast<char*>(stream.str().c_str()), MAIL_BODY_LENGTH );
+	std::stringstream buyer_stream(stream.str());
+	std::string buyer_str;
+	std::string line;
+	while (std::getline(buyer_stream, line)) {
+		if (line.find("<MSG>3185</MSG>") == std::string::npos &&
+			line.find("<MSG>3186</MSG>") == std::string::npos &&
+			line.find("<MSG>2936</MSG>") == std::string::npos) {
+			buyer_str += line + "\r\n";
+		}
+	}
+	std::stringstream buyer_str_add;
+	buyer_str_add << "<MSG>2936</MSG>" << totalprice << "z \r\n";
+	buyer_str += buyer_str_add.str();
+
+	safestrncpy( msg_buyer.body, buyer_str.c_str(), MAIL_BODY_LENGTH );
 	if(!intif_Mail_send( 0, &msg_buyer )){
 		stall_mail_db.push_back(msg_buyer);
 	}
@@ -823,7 +861,7 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 
 	struct mail_message msg_buyer = {};
 	msg_buyer.dest_id = st->vended_id;
-	safestrncpy( msg_buyer.send_name, "<MSG>2937</MSG>", NAME_LENGTH );
+	safestrncpy( msg_buyer.send_name, "<MSG>2938</MSG>", NAME_LENGTH );
 	safestrncpy( msg_buyer.title, "<MSG>2943</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_buyer.status = MAIL_NEW;
@@ -836,7 +874,7 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 	strftime(timestring, 22, "%m/%d/%Y, %H:%M", localtime(&curtime));
 
 	std::ostringstream stream;
-	stream << "<MSG>2932</MSG>" << timestring << "\r\n";
+	stream << "<MSG>2932</MSG>" << timestring << "\r\n\r\n";
 
 	// process item list
 	for( int i = 0; i < count; i++ ){
@@ -859,15 +897,17 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 		pc_delitem(sd, index, item->amount, 0, 0, LOG_TYPE_BUYING_STORE);
 		st->amount[listidx] -= item->amount;
 
-		struct item_data *id = itemdb_search(item->itemId);
-		stream << "\r\n<MSG>2933</MSG>" << id->name.c_str() << "\r\n";
+		std::shared_ptr<item_data> item_data = item_db.find(item->itemId);
+		std::string itemlstr = item_db.create_item_link(item_data, true).c_str();
+		stream << "<MSG>2933</MSG>" << itemlstr << "\r\n";
 
 		stream << "<MSG>2935</MSG>" << st->price[listidx] << "z \r\n";
 		stream << "<MSG>2934</MSG>" << item->amount << "\r\n";
-		stream << "<MSG>2936</MSG>" << st->price[listidx] * item->amount << "z \r\n";
 
 		msg_vendor.zeny += item->amount * st->price[listidx];
+		clif_buyingstore_delete_item(sd, index, item->amount, st->price[listidx]);
 	}
+	stream << "<MSG>2936</MSG>" << msg_vendor.zeny << "z \r\n";
 	stream << "\0";
 
 	safestrncpy( msg_vendor.body, const_cast<char*>(stream.str().c_str()), MAIL_BODY_LENGTH );
@@ -941,8 +981,8 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 	struct mail_message msg_vendor = {};
 
 	msg_vendor.dest_id = st->vended_id;
-	safestrncpy( msg_vendor.send_name, "노점 아르바이트생", NAME_LENGTH );
-	safestrncpy( msg_vendor.title, "판매 노점 아르바이트 종료", MAIL_TITLE_LENGTH );
+	safestrncpy( msg_vendor.send_name, "<MSG>2943</MSG>", NAME_LENGTH );
+	safestrncpy( msg_vendor.title, "<MSG>2940</MSG>", MAIL_TITLE_LENGTH );
 
 	msg_vendor.status = MAIL_NEW;
 	msg_vendor.type = MAIL_INBOX_NORMAL;
@@ -954,7 +994,8 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 	strftime(timestring, 22, "%m/%d/%Y, %H:%M", localtime(&curtime));
 
 	std::ostringstream stream;
-	stream << "반환 일시: " << timestring << "\r\n";
+	stream << "<MSG>2946</MSG> " << timestring << "\r\n";
+	stream << "\r\n<MSG>2942</MSG>\r\n\r\n";
 
 	int mail_index = 0;
 	for( int i = 0; i < st->vend_num; i++ ) {
@@ -963,9 +1004,9 @@ void stall_vending_getbackitems(struct s_stall_data* st){
 			msg_vendor.item[mail_index].amount = st->items_inventory[i].amount;
 
 			std::shared_ptr<item_data> item_data = item_db.find(st->items_inventory[i].nameid);
-			std::string itemlstr = item_db.create_item_link(item_data).c_str();
-			stream << "\r\n반환 아이템: " << itemlstr << "\r\n";
-			stream << "수량: " << st->items_inventory[i].amount << "\r\n";
+			std::string itemlstr = item_db.create_item_link(item_data, true).c_str();
+			stream << "<MSG>2944</MSG> " << itemlstr << "\r\n";
+			stream << "<MSG>2945</MSG> " << st->items_inventory[i].amount << "\r\n";
 			mail_index++;
 		}
 	}
@@ -1030,6 +1071,11 @@ void stall_remove(struct s_stall_data* st){
 	}
 	if(st->timer != INVALID_TIMER)
 		delete_timer(st->timer, stall_timeout);
+
+	map_session_data* stsd = map_id2sd(st->id); //PC official added
+	if (stsd)
+		clif_msg(stsd, 2921);
+	st->id = 0;
 
 	stall_db.erase(
 	std::remove_if(stall_db.begin(), stall_db.end(), [&](s_stall_data * const & itst) {

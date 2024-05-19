@@ -3123,7 +3123,7 @@ private:
 
 	e_sex defaultGender( const ryml::NodeRef& node, std::shared_ptr<item_data> id );
 
-	std::string create_item_link(struct item& item, std::shared_ptr<item_data>& data);
+	std::string create_item_link(struct item& item, std::shared_ptr<item_data>& data, bool slot = false);
 
 	struct s_pricevalue {
 		bool has_buy;
