@@ -41,6 +41,7 @@ struct s_stall_data {
 
 	bool type; // 0 vending 1 buying
 
+	int id;
 	int vended_id, vender_id;
 	int vend_num;
 	int timer;
