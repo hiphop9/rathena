@@ -1082,14 +1082,14 @@ void stall_buying_getbackzeny(struct s_stall_data* st){
 }
 
 void stall_remove(struct s_stall_data* st){
-	if( Sql_Query( mmysql_handle, "DELETE FROM `%s` WHERE `id` = %d AND `uid` = %d;", stalls_table, st->vender_id) != SQL_SUCCESS ) {
+	if( Sql_Query( mmysql_handle, "DELETE FROM `%s` WHERE `id` = %d;", stalls_table, st->vender_id) != SQL_SUCCESS ) {
 			Sql_ShowDebug(mmysql_handle);
 	}
 
 	map_session_data *vsd, *bsd;
 
 	switch(st->type){
-	case 0: {
+		case 0: {
 			if (Sql_Query(mmysql_handle, "DELETE FROM `%s` WHERE `stalls_id` = %d;", stalls_vending_items_table, st->vender_id) != SQL_SUCCESS) {
 				Sql_ShowDebug(mmysql_handle);
 			}
