@@ -95,6 +95,14 @@ int8 stall_ui_open(map_session_data* sd, uint16 skill_lv, short type){
 	return 0;
 }
 
+// Helper function to check for a player at the specified location
+static int check_player_at_location(struct block_list* bl, va_list ap) {
+    if (bl->type == BL_PC || bl->type == BL_STALL) {
+        return 1; // Found a player at the location
+    }
+    return 0; // No player found, continue searching
+}
+
 /**
 * Player setup a new vending stall
 * @param sd : player opening the shop
