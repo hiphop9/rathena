@@ -25628,8 +25628,7 @@ void clif_parse_stall_close( int fd, map_session_data* sd ){
 #if PACKETVER >= 20170208
 	const struct PACKET_CZ_STALL_CLOSE *p = (struct PACKET_CZ_STALL_CLOSE *)RFIFOP( fd, 0 );
 
-	if(p->srcId == sd->status.char_id)
-		stall_close(sd);
+	stall_close(sd, p->srcId);
 #endif
 }
 
