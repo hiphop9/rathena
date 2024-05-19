@@ -25384,13 +25384,6 @@ void clif_stall_buying_open(map_session_data *sd){
 		return;
 	}
 
-	// Check if a shop is already opened for this char
-	if(stall_isStallOpen(sd->status.char_id)){
-		clif_stall_ui_close(sd,101,STALLSTORE_OK);
-		clif_displaymessage(sd->fd, "You can't open 2 stalls at the same time on a char.");
-		return;
-	}
-
 	sd->state.prevend = 1;
 	sd->state.stall_ui_open = 1;
 
