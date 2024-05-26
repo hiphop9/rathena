@@ -2784,7 +2784,7 @@ static int unit_attack_timer_sub(struct block_list* src, int tid, t_tick tick)
 
 	if(sd && !check_distance_client_bl(src,target,range)) {
 		// Player tries to attack but target is too far, notify client
-		clif_movetoattack(sd,target);
+		clif_movetoattack( *sd, *target );
 		return 1;
 	} else if(md && !check_distance_bl(src,target,range)) {
 		// Monster: Chase if required
@@ -2988,7 +2988,7 @@ int unit_skillcastcancel(struct block_list *bl, char type)
 	if(bl->type==BL_MOB)
 		((TBL_MOB*)bl)->skill_idx = -1;
 
-	clif_skillcastcancel(bl);
+	clif_skillcastcancel( *bl );
 
 	return 1;
 }
@@ -3465,6 +3465,7 @@ int unit_free(struct block_list *bl, clr_type clrtype)
 			pc_inventory_rental_clear(sd);
 			pc_delspiritball(sd, sd->spiritball, 1);
 			pc_delspiritcharm(sd, sd->spiritcharm, sd->spiritcharm_type);
+			mob_removeslaves(&sd->bl);
 
 			if( sd->st && sd->st->state != RUN ) {// free attached scripts that are waiting
 				script_free_state(sd->st);

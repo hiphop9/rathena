@@ -393,7 +393,20 @@ int battle_delay_damage(t_tick tick, int amotion, struct block_list *src, struct
 		damage = 0;
 	}
 
-	if ( !battle_config.delay_battle_damage || amotion <= 1 ) {
+	// The client refuses to display animations slower than 1x speed
+	// So we need to shorten AttackMotion to be in-sync with the client in this case
+	if (battle_config.synchronize_damage && skill_id == 0 && src->type == BL_MOB && amotion > status_get_clientamotion(src))
+		amotion = status_get_clientamotion(src);
+	// Check for delay battle damage config
+	else if (!battle_config.delay_battle_damage)
+		amotion = 1;
+	// Aegis places a damage-delay cap of 1 sec to non player attacks
+	// We only want to apply this cap if damage was not synchronized
+	else if (src->type != BL_PC && amotion > 1000)
+		amotion = 1000;
+
+	// Skip creation of timer
+	if (amotion <= 1) {
 		//Deal damage
 		battle_damage(src, target, damage, ddelay, skill_lv, skill_id, dmg_lv, attack_type, additional_effects, gettick(), isspdamage);
 		return 0;
@@ -411,8 +424,6 @@ int battle_delay_damage(t_tick tick, int amotion, struct block_list *src, struct
 	dat->additional_effects = additional_effects;
 	dat->src_type = src->type;
 	dat->isspdamage = isspdamage;
-	if (src->type != BL_PC && amotion > 1000)
-		amotion = 1000; //Aegis places a damage-delay cap of 1 sec to non player attacks. [Skotlex]
 
 	if( src->type == BL_PC )
 		((TBL_PC*)src)->delayed_damage++;
@@ -1426,11 +1437,9 @@ bool battle_status_block_damage(struct block_list *src, struct block_list *targe
 
 	// ATK_DEF Type
 	if ((sce = sc->getSCE(SC_LIGHTNINGWALK)) && !(flag & BF_MAGIC) && flag&BF_LONG && rnd() % 100 < sce->val1) {
-		const int dx[8] = { 0,-1,-1,-1,0,1,1,1 };
-		const int dy[8] = { 1,1,0,-1,-1,-1,0,1 };
 		uint8 dir = map_calc_dir(target, src->x, src->y);
 
-		if (unit_movepos(target, src->x - dx[dir], src->y - dy[dir], 1, 1)) {
+		if (unit_movepos(target, src->x - dirx[dir], src->y - diry[dir], 1, 1)) {
 			clif_blown(target);
 			unit_setdir(target, dir);
 		}
@@ -9812,7 +9821,7 @@ enum damage_lv battle_weapon_attack(struct block_list* src, struct block_list* t
 				if (sd->weapontype1 > W_KATAR && sd->weapontype1 < W_HUUMA)
 					clif_skill_fail( *sd, 0, USESKILL_FAIL_NEED_MORE_BULLET );
 				else
-					clif_arrow_fail(sd,0);
+					clif_arrow_fail( *sd, ARROWFAIL_NO_AMMO );
 				return ATK_NONE;
 			}
 			//Ammo check by Ishizu-chan
@@ -9820,7 +9829,7 @@ enum damage_lv battle_weapon_attack(struct block_list* src, struct block_list* t
 				switch (sd->status.weapon) {
 					case W_BOW:
 						if (sd->inventory_data[index]->subtype != AMMO_ARROW) {
-							clif_arrow_fail(sd,0);
+							clif_arrow_fail( *sd, ARROWFAIL_NO_AMMO );
 							return ATK_NONE;
 						}
 						break;
@@ -9864,7 +9873,7 @@ enum damage_lv battle_weapon_attack(struct block_list* src, struct block_list* t
 		if (dist <= 0 || (!map_check_dir(dir,t_dir) && dist <= tstatus->rhw.range+1)) {
 			uint16 skill_lv = tsc->getSCE(SC_AUTOCOUNTER)->val1;
 
-			clif_skillcastcancel(target); //Remove the casting bar. [Skotlex]
+			clif_skillcastcancel( *target ); //Remove the casting bar. [Skotlex]
 			clif_damage(src, target, tick, sstatus->amotion, 1, 0, 1, DMG_NORMAL, 0, false); //Display MISS.
 			status_change_end(target, SC_AUTOCOUNTER);
 			skill_attack(BF_WEAPON,target,target,src,KN_AUTOCOUNTER,skill_lv,tick,0);
@@ -10473,6 +10482,22 @@ struct block_list* battle_get_master(struct block_list *src)
 	return prev;
 }
 
+bool battle_get_exception_ai(block_list &src) {
+	mob_data *md = BL_CAST(BL_MOB, &src);
+
+	if (!md)
+		return false;
+
+	switch (md->special_state.ai) {
+		case AI_ABR:
+		case AI_ATTACK:
+		case AI_BIONIC:
+		case AI_ZANZOU:
+			return true;
+	}
+	return false;
+}
+
 /*==========================================
  * Checks the state between two targets
  * (enemy, friend, party, guild, etc)
@@ -10724,7 +10749,7 @@ int battle_check_target( struct block_list *src, struct block_list *target,int f
 			if( !md->special_state.ai )
 			{ //Normal mobs
 				if(
-					( target->type == BL_MOB && t_bl->type == BL_PC && ( ((TBL_MOB*)target)->special_state.ai != AI_ZANZOU && ((TBL_MOB*)target)->special_state.ai != AI_ATTACK ) ) ||
+					( target->type == BL_MOB && t_bl->type == BL_PC && !battle_get_exception_ai(*target) ) ||
 					( t_bl->type == BL_MOB && (((TBL_MOB*)t_bl)->special_state.ai == AI_NONE || ((TBL_MOB*)t_bl)->special_state.ai == AI_WAVEMODE ))
 				  )
 					state |= BCT_PARTY; //Normal mobs with no ai or with AI_WAVEMODE are friends.
@@ -11481,6 +11506,8 @@ static const struct _battle_data {
 
 	{ "mob_respawn_time",                   &battle_config.mob_respawn_time,                1000,   1000,   INT_MAX,        },
 	{ "mob_unlock_time",                    &battle_config.mob_unlock_time,                 2000,   0,      INT_MAX,        },
+	{ "map_edge_size",                      &battle_config.map_edge_size,                   15,     1,      40,             },
+	{ "randomize_center_cell",              &battle_config.randomize_center_cell,           1,      0,      1,              },
 
 	{ "feature.stylist",                    &battle_config.feature_stylist,                 1,      0,      1,              },
 	{ "feature.banking_state_enforce",      &battle_config.feature_banking_state_enforce,   0,      0,      1,              },
@@ -11489,6 +11516,7 @@ static const struct _battle_data {
 #else
 	{ "feature.instance_allow_reconnect",   &battle_config.instance_allow_reconnect,        0,      0,      1,              },
 #endif
+	{ "synchronize_damage",                 &battle_config.synchronize_damage,              0,      0,      1,              },
 
 #include <custom/battle_config_init.inc>
 };
