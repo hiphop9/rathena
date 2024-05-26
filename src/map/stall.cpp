@@ -625,7 +625,7 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 	}
 
 	if( st->vender_id != uid || st->unique_id != aid ) { // shop has changed
-		clif_buyvending(sd, 0, 0, 6);  // store information was incorrect
+		clif_buyvending( *sd, 0, 0, PURCHASEMC_STORE_INCORRECT );  // store information was incorrect
 		return;
 	}
 
@@ -656,19 +656,19 @@ void stall_vending_purchasereq(map_session_data* sd, int aid, int uid, const uin
 
 		z += ((double)st->price[idx] * (double)amount);
 		if( z > (double)sd->status.zeny || z < 0. || z > (double)MAX_ZENY ) {
-			clif_buyvending(sd, idx, amount, 1); // you don't have enough zeny
+			clif_buyvending( *sd, idx, amount, PURCHASEMC_NO_ZENY); // you don't have enough zeny
 			return;
 		}
 
 		w += itemdb_weight(st->items_inventory[idx].nameid) * amount;
 		if( w + sd->weight > sd->max_weight ) {
-			clif_buyvending(sd, idx, amount, 2); // you can not buy, because overweight
+			clif_buyvending( *sd, idx, amount, PURCHASEMC_OVERWEIGHT); // you can not buy, because overweight
 			return;
 		}
 
 		//Check to see if cart/vend info is in sync.
 		if( amount > st->items_inventory[idx].amount ){
-			clif_buyvending(sd, idx, st->items_inventory[idx].amount, 4); // not enough quantity
+			clif_buyvending( *sd, idx, st->items_inventory[idx].amount, PURCHASEMC_OUT_OF_STOCK); // not enough quantity
 			return;
 		}
 	}
