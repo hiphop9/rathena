@@ -4,6 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS `stalls` (
   `id` int UNSIGNED NOT NULL,
+  `uid` int UNSIGNED NOT NULL,
   `char_id` int UNSIGNED NOT NULL,
   `type` tinyint(3) unsigned NOT NULL,
   `class` smallint UNSIGNED NOT NULL DEFAULT '0',
