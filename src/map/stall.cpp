@@ -923,7 +923,7 @@ void stall_buying_purchasereq(map_session_data* sd, int aid, int uid, const stru
 		memcpy(&msg_buyer.item[i],&sd->inventory.u.items_inventory[index],sizeof(struct item));
 		msg_buyer.item[i].amount = item->amount;
 
-		pc_delitem(sd, index, item->amount, 0, 0, LOG_TYPE_BUYING_STORE);
+		pc_delitem(sd, index, item->amount, 1, 0, LOG_TYPE_BUYING_STORE);
 		st->amount[listidx] -= item->amount;
 
 		std::shared_ptr<item_data> item_data = item_db.find(item->itemId);
