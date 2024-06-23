@@ -14042,7 +14042,7 @@ void clif_parse_PurchaseReq2(int fd, map_session_data* sd){
 		stall_vending_purchasereq( sd, p->AID, p->UniqueID, (uint8*)p->list, ( p->packetLength - sizeof( *p ) ) / sizeof( p->list[0] ) );
 		clif_msg_color(sd, 2917, color_table[COLOR_CYAN]);
 	} else
-	  vending_purchasereq( sd, p->AID, p->UniqueID, (uint8*)p->list, ( p->packetLength - sizeof( *p ) ) / sizeof( p->list[0] ) );
+		vending_purchasereq( sd, p->AID, p->UniqueID, (uint8*)p->list, ( p->packetLength - sizeof( *p ) ) / sizeof( p->list[0] ) );
 
 	// whether it fails or not, the buy window is closed
 	sd->vended_id = 0;
@@ -19125,7 +19125,7 @@ static void clif_parse_ReqTradeBuyingStore( int fd, map_session_data* sd ){
 		stall_buying_purchasereq(sd, p->AID, p->storeId, p->items, packet_len / sizeof( p->items[0] ) );
 		clif_msg(sd, 2947);
 	} else
-	  buyingstore_trade( sd, p->AID, p->storeId, p->items, packet_len / sizeof( p->items[0] ) );
+		buyingstore_trade( sd, p->AID, p->storeId, p->items, packet_len / sizeof( p->items[0] ) );
 }
 
 
