@@ -231,7 +231,7 @@ void searchstore_query(map_session_data* sd, unsigned char type, unsigned int mi
 
 	if( !sd->searchstore.items.empty() ) {
 		// present results
-		clif_search_store_info_ack(sd);
+		clif_search_store_info_ack( *sd );
 
 		// one page displayed
 		sd->searchstore.pages++;
@@ -240,7 +240,7 @@ void searchstore_query(map_session_data* sd, unsigned char type, unsigned int mi
 		searchstore_clear(sd);
 
 		// update uses
-		clif_search_store_info_ack(sd);
+		clif_search_store_info_ack( *sd );
 
 		// notify of failure
 		clif_search_store_info_failed(sd, SSI_FAILED_NOTHING_SEARCH_ITEM);
@@ -270,7 +270,7 @@ void searchstore_next(map_session_data* sd)
 		return;
 
 	// present results
-	clif_search_store_info_ack(sd);
+	clif_search_store_info_ack( *sd );
 
 	// one more page displayed
 	sd->searchstore.pages++;
