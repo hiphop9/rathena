@@ -1,4 +1,4 @@
-﻿//===== rAthena Documentation================================
+//===== rAthena Documentation================================
 //= rAthena Script Commands
 //===== By:==================================================
 //= rAthena Dev Team
@@ -5756,7 +5756,7 @@ window, to avoid any disruption when both windows overlap.
 
 ---------------------------------------
 
-*openstorage2 <storage_id>,<mode>{,<account_id>};
+*openstorage2 <storage_id>{,<mode>{,<account_id>}};
 
 Just like the 'openstorage' command, except this command can open additional storages
 by the specified <storage_id>. For <storage_id>, please read the conf/inter_server.yml
@@ -5766,13 +5766,14 @@ Values for <mode> are:
 	STOR_MODE_NONE : Player only can read the storage entries.
 	STOR_MODE_GET  : Player can get items from the storage.
 	STOR_MODE_PUT  : Player can put items in the storage.
+	STOR_MODE_ALL  : Player can get and put items in the storage. (default)
 
 Example:
 	if (vip_status(VIP_STATUS_ACTIVE)) {
 		mes "I will open your Premium storage.";
 		mes "Thank you for using our service.";
 		close2;
-		openstorage2 1,STOR_MODE_GET|STOR_MODE_PUT;
+		openstorage2 1;
 	} else {
 		mes "Sorry, your Premium status is expired.";
 		mes "Storage will be opened but you can't put any item into it.";
@@ -6124,11 +6125,12 @@ will always return 0.
 
 ---------------------------------------
 
-*skilleffect <skill id>,<number>;
-*skilleffect "<skill name>",<number>;
+*skilleffect <skill id>,<number>{,<game ID>};
+*skilleffect "<skill name>",<number>{,<game ID>};
 
 This command displays visual and aural effects of given skill on currently
-attached character. The number parameter is for skill whose visual effect
+attached character or, when defined, on any unit with the given ID.
+The number parameter is for skill whose visual effect
 involves displaying of a number (healing or damaging). Note, that this command
 will not actually use the skill, it is intended for scripts, which simulate
 skill usage by the NPC, such as buffs, by setting appropriate status and
@@ -8509,6 +8511,15 @@ Opens the tip box UI for the attached player or the given character ID.
 This command requires packet version 2017-11-22 or newer.
 
 ---------------------------------------
+
+*specialpopup(<popup ID>);
+
+Open popup and/or show text by ID from list defined in the client spopup.lub file.
+Popup and text is only visible if the player warped from one map to another map.
+
+This command requires packet version 2022-10-05 or newer.
+
+---------------------------------------
 \\
 6,1.- Unit-related commands
 \\
@@ -9856,6 +9867,7 @@ For details on the other parameters, see 'announce'.
 
 This function checks if a party meets certain requirements, returning 1 if all
 conditions are met and 0 otherwise. It will only check online characters.
+The command returns 0 is the party ID does not exist.
 
 amount - number of online party members (default is 1).
 min    - minimum level of all characters in the party (default is 1).
@@ -10417,19 +10429,25 @@ This is still usable outside item scripts.
 
 ---------------------------------------
 
-*pet <pet id>;
-*catchpet <pet id>;
+*pet {<item_id>{,flag}};
+*catchpet {<item_id>{,flag}};
 
-This command is used in all the item scripts for taming items. Running this
-command will make the pet catching cursor appear on the client connected to the
-invoking character, usable on the monsters with the specified pet ID number. It
-will still work outside an item script.
-If the <pet id> is PET_CATCH_UNIVERSAL the item will attempt to catch the targeted
-monster as long as it is in the pet database and does not have the MD_STATUS_IMMUNE
-monster mode.
-If the <pet id> is PET_CATCH_UNIVERSAL_ITEM the item will attempt to catch the targeted
-monster as long as it is in the pet database and the targeted monster requires the lure
-item used.
+This command is used in all the item scripts for taming items.
+Running this command will make the pet catching cursor appear on the client of the invoking character
+and the player can then attempt to catch a monster.
+
+If the item ID is not specified, the command will use the item ID from the invoking item script.
+It will also work outside of an item script, if the item ID is provided.
+
+The following constants can be used as <flag> parameter:
+
+	PET_CATCH_NORMAL:				Will attempt to catch the targeted monster as long as it is in the pet database and
+									the taming item corresponds with the required taming item in the pet database.
+									This is the default if <flag> is not specified.
+	PET_CATCH_UNIVERSAL_NO_BOSS:	Will attempt to catch the targeted monster as long as it is in the pet database and
+									does not have the MD_STATUS_IMMUNE monster mode.
+	PET_CATCH_UNIVERSAL_ALL:		Will attempt to catch the targeted monster as long as it is in the pet database.
+
 See 'doc/mob_db_mode_list.txt' for more information about monster modes.
 
 A full list of pet IDs can be found inside 'db/(pre-)re/pet_db.yml'.
@@ -10680,6 +10698,7 @@ current invoking character.
 *addhomintimacy <amount>{,<char_id>};
 
 Increase or decrease a homunculus' intimacy value by the given <amount>. 100000 is full loyalty.
+Fails silently when no players are attached or if the player has no homunculus.
 
 ---------------------------------------
 
